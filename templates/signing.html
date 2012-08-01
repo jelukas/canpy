@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block css %}
+    <style type="text/css">
+        #container {
+            position: relative;
+        }
+
+        #sketchpad {
+            border: 1px solid #000;
+        }
+    </style>
+{% endblock %}
+{% block scripts %}
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type="text/javascript">
+        jQuery(document).ajaxSend(function (event, xhr, settings) {
+            function getCookie(name) {
+                var cookieValue = null;
+                if (document.cookie && document.cookie != '') {
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var cookie = jQuery.trim(cookies[i]);
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            function sameOrigin(url) {
+                // url could be relative or scheme relative or absolute
+                var host = document.location.host; // host + port
+                var protocol = document.location.protocol;
+                var sr_origin = '//' + host;
+                var origin = protocol + sr_origin;
+                // Allow absolute or scheme relative URLs to same origin
+                return (url == origin || url.slice(0, origin.length + 1) == origin + '/') ||
+                        (url == sr_origin || url.slice(0, sr_origin.length + 1) == sr_origin + '/') ||
+                    // or any other URL that isn't scheme relative or absolute i.e relative.
+                        !(/^(\/\/|http:|https:).*/.test(url));
+            }
+
+            function safeMethod(method) {
+                return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+            }
+
+            if (!safeMethod(settings.type) && sameOrigin(settings.url)) {
+                xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+            }
+        });
+    </script>
+    <script type="text/javascript" charset="utf-8">
+        var canvas = document.getElementById('sketchpad');
+        window.addEventListener('load', function () {
+
+            canvas = document.getElementById('sketchpad');
+            var context = canvas.getContext('2d');
+
+            var drawer = {
+                isDrawing:false,
+                touchstart:function (coors) {
+                    context.beginPath();
+                    context.moveTo(coors.x, coors.y);
+                    this.isDrawing = true;
+                },
+                touchmove:function (coors) {
+                    if (this.isDrawing) {
+                        context.lineTo(coors.x, coors.y);
+                        context.stroke();
+                    }
+                },
+                touchend:function (coors) {
+                    if (this.isDrawing) {
+                        this.touchmove(coors);
+                        this.isDrawing = false;
+                    }
+                }
+            };
+
+            function draw(event) {
+                var coors = {
+                    x:event.targetTouches[0].pageX,
+                    y:event.targetTouches[0].pageY
+                };
+                drawer[event.type](coors);
+            }
+
+            // attach the touchstart, touchmove, touchend event listeners.
+            canvas.addEventListener('touchstart', draw, false);
+            canvas.addEventListener('touchmove', draw, false);
+            canvas.addEventListener('touchend', draw, false);
+
+            // prevent elastic scrolling
+            document.body.addEventListener('touchmove', function (event) {
+                event.preventDefault();
+            }, false);	// end body.onTouchMove
+
+        }, false);    // end window.onLoad
+
+        function salvarDatos() {
+            var canvasData = canvas.toDataURL("image/png");
+            nombre = document.getElementById('nombre').value;
+            $.ajax({
+                type:'POST',
+                url:'{% url save_sign %}',
+                data:{ canvasData_b64:canvasData, nombre_firma:nombre },
+                contentType:'application/upload',
+                success:function (data) {
+                    $('#ajax_response').html(data);
+                }
+            });
+
+        }
+    </script>
+{% endblock %}
+{% block titulo %}
+    Firma Aqui
+{% endblock %}
+{% block content %}
+    <canvas id="sketchpad" width="320" height="270">
+        Error: Canvas no soportado
+    </canvas>
+    <div id="datos">
+        <table width="320" height="80" border="0">
+            <tr>
+                <td height="26">Nombre:</td>
+                <td><input type="text" name="nombre" id="nombre"></td>
+            </tr>
+            <tr>
+                <td height="29"><input type="button" onClick="salvarDatos();" value="Recoger Firma"/></td>
+                <td><a href="{% url list_signs %}">Ver Firmas Recogidas</a></td>
+            </tr>
+        </table>
+        <p id="ajax_response"></p>
+{% endblock %}

@@ -1,0 +1,11 @@
+{%  extends 'base.html' %}
+{% block titulo %}
+    Lista de Firmas
+{% endblock %}
+{% block content %}
+    <ul>
+        {% for sign in signs %}
+        <li>{{ sign }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
